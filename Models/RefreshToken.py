@@ -1,6 +1,8 @@
 
+from sqlalchemy.sql.schema import ForeignKey
+
 from Database import Base
-from sqlalchemy import  Column, DateTime, String, Boolean
+from sqlalchemy import  Column, DateTime, Nullable, String, Boolean
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy.sql import func
 
@@ -10,16 +12,15 @@ class RefreshToken(Base):
 
     id=Column(
         UNIQUEIDENTIFIER,
-        unique=True, 
-        nullable=False,
+        primary_key=True,
         index=True,
         server_default=func.newid()
         )
 
     user_id=Column(
         UNIQUEIDENTIFIER, 
-        primary_key=True, 
-        server_default=func.newid()
+        ForeignKey("User.user_id"),
+        Nullable=False
         )
 
     token=Column(

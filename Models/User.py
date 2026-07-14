@@ -26,6 +26,12 @@ class User(Base):
         nullable=False
         )
 
+    username=Column(
+        String(255),
+        unique=True, 
+        nullable=False,
+        )
+
     is_active=Column(
         Boolean,
         default=True,
