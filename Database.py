@@ -2,11 +2,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL= ( "mssql+pyodbc://@your_server/your_database"
-    "?driver=ODBC+Driver+17+for+SQL+Server"
-    "&Trusted_Connection=yes"
-    "&Encrypt=yes"
-    "&TrustServerCertificate=no" )
+DATABASE_URL= ( "mssql+pyodbc://Sherin:Sherin.Saji123@CORP\\SQLEXPRESS/RideSharing"
+"?driver=ODBC+Driver+17+for+SQL+Server"
+"&TrustServerCertificate=yes"
+) 
 
 engine = create_engine(DATABASE_URL)
 
