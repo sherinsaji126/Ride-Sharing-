@@ -20,7 +20,7 @@ class RefreshToken(Base):
     user_id=Column(
         UNIQUEIDENTIFIER, 
         ForeignKey("User.user_id"),
-        Nullable=False
+        nullable=False
         )
 
     token=Column(

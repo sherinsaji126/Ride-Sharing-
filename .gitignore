@@ -1,2 +1,4 @@
 .vs/
 myvenv/
+Credentials.env
+__pycache__/
