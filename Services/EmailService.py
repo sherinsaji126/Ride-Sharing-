@@ -6,11 +6,27 @@ from dotenv import load_dotenv
 
 load_dotenv("Credentials.env")
 
-def send_otp_email(receiver_email: str, otp: str):
+def send_email(receiver_email: str,subject:str,body:str):
 
     sender_email = os.getenv("SENDER_EMAIL") 
     app_password = os.getenv("APP_PASSWORD")
 
+
+    message = MIMEText(body)
+    message["Subject"] = subject
+    message["From"] = sender_email
+    message["To"] = receiver_email
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+
+        server.starttls()
+        server.login(sender_email, app_password)
+        server.send_message(message)
+
+
+def send_otp_email(receiver_email: str, otp: str):
+
+    
     subject = "Password Reset OTP"
 
     body = f"""Hello,
@@ -27,14 +43,5 @@ def send_otp_email(receiver_email: str, otp: str):
     Sherin Saji 
     
     """
-
-    message = MIMEText(body)
-    message["Subject"] = subject
-    message["From"] = sender_email
-    message["To"] = receiver_email
-
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
-
-        server.starttls()
-        server.login(sender_email, app_password)
-        server.send_message(message)
+    
+    send_email(receiver_email,subject,body)

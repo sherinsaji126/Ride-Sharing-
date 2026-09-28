@@ -165,7 +165,7 @@ class ChangePassword(BaseModel):
 
         return value
 
-# AN API ENDPOINT TO GENERATE THE OTP FOR THE USER FROM EMAIL
+# AN API ENDPOINT TO GENERATE THE OTP FOR THE USER AND SEND THROUGH EMAIL
 # @app.post("/forget-password/{email_id}",status_code=status.HTTP_200_OK) 
 # It's generally cleaner to accept the email in the request body or query parameter rather than as part of the URL.
 @app.post("/forget-password",status_code=status.HTTP_200_OK)
@@ -197,6 +197,7 @@ async def forget_password(db:Annotated[Session,Depends(get_db)],change_password:
         existing_otp_user.is_used=False
 
     db.commit()
+    
     send_otp_email(change_password.email_id, otp_generate)
     
     return {"message":"OTP generated successfully"}
