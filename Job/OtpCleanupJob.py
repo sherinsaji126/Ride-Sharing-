@@ -4,13 +4,40 @@ from datetime import datetime
 from Services.EmailService import send_email
 from dotenv import load_dotenv
 import os
+import logging
+from logging.handlers import TimedRotatingFileHandler
 
 load_dotenv("Credentials.env")
+
+log_dir=r"C:\\Users\shsaji\\OneDrive - Capgemini\\CG docs\\Ride Share Project\\Logs"
+
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+#     logging.basicConfig(
+#     filename="Logs/otp_cleanup.log",
+#     level=logging.INFO,
+#     format="%(asctime)s | %(levelname)s | %(message)s"
+#     )
+handler = TimedRotatingFileHandler(
+filename=os.path.join(log_dir, "otp_cleanup.log"),
+# filename="Logs/otp_cleanup.log",
+when="midnight",
+interval=1,
+backupCount=30
+)
+formatter = logging.Formatter(
+"%(asctime)s | %(levelname)s | %(message)s"
+)
+handler.setFormatter(formatter)
+logger = logging.getLogger("OTP_CLEANUP")
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
 
 
 # async def cleanup_otp_record(db:Annotated[Session,Depends(get_db)]): why i can't use this
 def cleanup_otp_record():
     try:
+
         start_time=datetime.now()
 
         db=SessionLocal()
@@ -33,6 +60,7 @@ def cleanup_otp_record():
 
         Status : SUCCESS
         """
+        logger.info(body)
         # why I can't just write body -> because a positional argument cannot comes after keyword arguments.
         send_email(os.getenv("SENDER_EMAIL"),subject="OTP Cleanup Job Success",body=body)
 
@@ -49,6 +77,7 @@ def cleanup_otp_record():
 
         Status : FAILED
         """
+        logger.error(body)
         send_email(os.getenv("SENDER_EMAIL"),subject="OTP Cleanup Job Failed",body=body)
 
     finally:
@@ -58,12 +87,3 @@ if __name__ == "__main__":
     cleanup_otp_record()
 
 
-    
-
-
-
-# 2. query to fetch the records and count the records 
-# 3. log it to the file 
-# 4. the delete it 
-# 5. close db conneciton
-# 6. the send this log thorugh mail for success and failure.

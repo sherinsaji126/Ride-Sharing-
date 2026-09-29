@@ -1,0 +1,20 @@
+2026-09-28 19:13:50,750 | ERROR | 
+        OTP Cleanup Job Failed
+
+        Start Time : 2026-09-28 19:13:33.368760
+
+        Error :(pyodbc.OperationalError) ('08001', '[08001] [Microsoft][ODBC Driver 17 for SQL Server]SQL Server Network Interfaces: Error Locating Server/Instance Specified [xFFFFFFFF].  (-1) (SQLDriverConnect); [08001] [Microsoft][ODBC Driver 17 for SQL Server]Login timeout expired (0); [08001] [Microsoft][ODBC Driver 17 for SQL Server]A network-related or instance-specific error has occurred while establishing a connection to SQL Server. Server is not found or not accessible. Check if instance name is correct and if SQL Server is configured to allow remote connections. For more information see SQL Server Books Online. (-1)')
+(Background on this error at: https://sqlalche.me/e/20/e3q8) # why converting in string ?
+
+        Status : FAILED
+        
+2026-09-28 19:16:50,988 | ERROR | 
+        OTP Cleanup Job Failed
+
+        Start Time : 2026-09-28 19:16:33.661488
+
+        Error :(pyodbc.OperationalError) ('08001', '[08001] [Microsoft][ODBC Driver 17 for SQL Server]SQL Server Network Interfaces: Error Locating Server/Instance Specified [xFFFFFFFF].  (-1) (SQLDriverConnect); [08001] [Microsoft][ODBC Driver 17 for SQL Server]Login timeout expired (0); [08001] [Microsoft][ODBC Driver 17 for SQL Server]A network-related or instance-specific error has occurred while establishing a connection to SQL Server. Server is not found or not accessible. Check if instance name is correct and if SQL Server is configured to allow remote connections. For more information see SQL Server Books Online. (-1)')
+(Background on this error at: https://sqlalche.me/e/20/e3q8) # why converting in string ?
+
+        Status : FAILED
+        
