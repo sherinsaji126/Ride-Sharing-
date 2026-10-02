@@ -9,7 +9,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 load_dotenv("Credentials.env")
 
-log_dir=r"C:\\Users\shsaji\\OneDrive - Capgemini\\CG docs\\Ride Share Project\\Logs"
+log_dir=r"C:\\Users\shsaji\\OneDrive - Capgemini\\CG docs\\Logs"
 
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
