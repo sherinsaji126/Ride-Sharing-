@@ -1,4 +1,4 @@
-from fastapi import APIRouter,HTTPException,status,Depends
+from fastapi import APIRouter,HTTPException,Depends,status,Response
 # from starlette import status
 import re
 #Passlib is a Python library for secure password hashing. 
@@ -17,14 +17,67 @@ from Api.Dependencies import get_db
 # 1. The class is loaded into memory.
 # 2. SQLAlchemy registers the table definition.
 # 3. users table information is added to Base.metadata.
-from Models import PasswordResetOTP,User
-from datetime import datetime,timedelta
+from Models import PasswordResetOTP,User,RefreshToken
+from datetime import datetime,timedelta,timezone
 import secrets
 from Services.EmailService import send_otp_email
+from Core import Security
 
 router = APIRouter()
 
 pwd_context=CryptContext(schemes=["bcrypt"],deprecated="auto")
+
+
+# ************************************Login************************************************
+# Request Model
+class UserDetailsLogin(BaseModel):
+
+     # dependency -> package email-validator
+     # EmailStr is required to check if valid email address is entered that it. 
+     # It does not automatically strip spaces and convert to lowercase for this we need to use field validator
+    
+    email_id:str
+    password:str
+
+    @field_validator("email_id", mode="before")
+    @classmethod
+    def validate_email(cls, value):
+        value = value.strip().lower()
+        if not value:
+            raise ValueError("Field cannot be empty")
+        return value
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value):
+        value = value.strip()
+        if not value:
+                raise ValueError("Password field cannot be empty")
+        return value
+
+       
+@router.post("/login",status_code=status.HTTP_200_OK)
+async def verify_user(db:Annotated[Session,Depends(get_db)],login_detail:UserDetailsLogin):
+    
+    user_record=db.query(User).filter((User.email_id==login_detail.email_id)| (User.username==login_detail.username)).first()
+    if not user_record:
+        raise HTTPException(status_code=400,detail="Username or Password is incorrect")
+
+    if not pwd_context.verify(login_detail.password,user_record.password_hash):
+        raise HTTPException(status_code=400,detail="Username or Password is incorrect")
+    if user_record.is_active:
+
+        
+
+
+        return{
+                "message":"Login Successfull" # need to return the jwt token and refresh token
+            }
+    else:
+        raise HTTPException(status_code=403,detail="User account is inactive")
+    
+
+
 
 # ************************************Register************************************************
 
@@ -36,7 +89,7 @@ class UserDetails(BaseModel):
      # It does not automatically strip spaces and convert to lowercase for this we need to use field validator
     
     email_id:EmailStr
-    password_hash:str
+    password:str
     username:str
 
     @field_validator("email_id", mode="before")
@@ -60,7 +113,7 @@ class UserDetails(BaseModel):
         return value
 
 
-    @field_validator("password_hash")
+    @field_validator("password")
     @classmethod
     def validate_password(cls, value):
         if len(value) < 8:
@@ -78,17 +131,18 @@ class UserDetails(BaseModel):
 class RegisterUser(BaseModel):
     email_id: EmailStr
     username: str
+    message: str
 
 # AN API ENDPOINT TO POST USER DETAILS IN USER TABLE
 @router.post("/register",status_code=status.HTTP_201_CREATED,response_model=RegisterUser)
-async def add_user(db:Annotated[Session,Depends(get_db)], user_details:UserDetails):
+async def add_user(response:Response,db:Annotated[Session,Depends(get_db)], user_details:UserDetails):
 
     existing_user=db.query(User).filter((User.email_id==user_details.email_id) | (User.username==user_details.username)).first()
 
     if existing_user:
         raise HTTPException(status_code=400,detail="Username or Email already exists")
     
-    hashed_password = pwd_context.hash(user_details.password_hash)
+    hashed_password = pwd_context.hash(user_details.password)
     
     details=User(username=user_details.username,password_hash=hashed_password,email_id=user_details.email_id)
 
@@ -96,10 +150,37 @@ async def add_user(db:Annotated[Session,Depends(get_db)], user_details:UserDetai
     db.commit()
     db.refresh(details) # Here we don't need refresh actually but I have here just for the learning purpose
 
+    access_token=Security.create_access_token(details.user_id)
+    refresh_token=Security.create_refresh_token()
+    
+    token_details=RefreshToken(user_id=details.user_id,token=refresh_token)
+
+    db.add(token_details)
+    db.commit()
+
+#why we required reponse as a parameter
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        max_age=900, # why not expires ?
+        secure=False, # True during Production
+        samesite="lax"
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        max_age=30*24*60*60,
+        secure=False, # True during Production
+        samesite="lax"
+        )
+    
     return {
 
-        "email_id":user_details.email_id,
-        "username":user_details.username
+    "email_id": details.email_id,
+    "username": details.username,
+    "message": "Registration successful"
     }
 
 # ************************************Forgot Password********************************************
@@ -148,6 +229,7 @@ async def forget_password(db:Annotated[Session,Depends(get_db)],change_password:
         existing_otp_user.expires_at = datetime.now() + timedelta(minutes=5)
         existing_otp_user.is_verified=False
         existing_otp_user.is_used=False
+        existing_otp_user.created_at=datetime.now()
 
     db.commit()
     
@@ -261,10 +343,16 @@ async def reset_password(db:Annotated[Session,Depends(get_db)],password_reset:Pa
     hashed_password=pwd_context.hash(password_reset.new_password)
 
     existing_user.password_hash=hashed_password
-    # Below Both line to remove once I automate the removal of otp record from PasswordResetOTP Table
-    otp_record.is_verified=False
-    otp_record.is_used = False
   
     db.commit()
 
     return {"message": "Password changed successfully"}
+
+
+
+# Later, in larger applications, you'd often have a separate endpoint like:
+
+# HTTP
+# GET /me
+
+# that returns the currently logged-in user's details.

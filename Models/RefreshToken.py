@@ -1,10 +1,11 @@
 
 from sqlalchemy.sql.schema import ForeignKey
-
+from datetime import datetime, timezone, timedelta
 from Database import Base
 from sqlalchemy import  Column, DateTime, Nullable, String, Boolean
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy.sql import func
+from datetime import timedelta
 
 class RefreshToken(Base):
 
@@ -24,9 +25,9 @@ class RefreshToken(Base):
         )
 
     token=Column(
-        UNIQUEIDENTIFIER, 
-        nullable=False, 
-        server_default=func.newid()
+        String(255), 
+        nullable=False,
+        unique=True 
         )
 
     is_revoked=Column(
@@ -37,13 +38,14 @@ class RefreshToken(Base):
 
     expires_at=Column(
         DateTime,
-        server_default=func.getdate(),
+        default=lambda: datetime.now(timezone.utc) + timedelta(days=30),
         nullable=False
         )
 
     created_at=Column(
         DateTime,
         server_default=func.getdate(),
-        onupdate=func.getdate()
+        onupdate=func.getdate(),
+        nullable=False
         )
     
