@@ -32,7 +32,7 @@ class RefreshToken(Base):
 
     is_revoked=Column(
         Boolean,
-        default=True,
+        default=False,
         nullable=False
         )
 

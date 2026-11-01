@@ -1,4 +1,4 @@
-from fastapi import APIRouter,HTTPException,Depends,status,Response
+from fastapi import APIRouter,HTTPException,Depends,status,Response,Request
 # from starlette import status
 import re
 #Passlib is a Python library for secure password hashing. 
@@ -36,13 +36,13 @@ class UserDetailsLogin(BaseModel):
      # EmailStr is required to check if valid email address is entered that it. 
      # It does not automatically strip spaces and convert to lowercase for this we need to use field validator
     
-    email_id:str
+    login:str
     password:str
 
-    @field_validator("email_id", mode="before")
+    @field_validator("login", mode="before")
     @classmethod
-    def validate_email(cls, value):
-        value = value.strip().lower()
+    def validate_login(cls, value):
+        value = value.strip()
         if not value:
             raise ValueError("Field cannot be empty")
         return value
@@ -57,27 +57,52 @@ class UserDetailsLogin(BaseModel):
 
        
 @router.post("/login",status_code=status.HTTP_200_OK)
-async def verify_user(db:Annotated[Session,Depends(get_db)],login_detail:UserDetailsLogin):
+async def verify_user(response : Response,db:Annotated[Session,Depends(get_db)],login_detail:UserDetailsLogin):
     
-    user_record=db.query(User).filter((User.email_id==login_detail.email_id)| (User.username==login_detail.username)).first()
+    user_record=db.query(User).filter((User.email_id==login_detail.login.lower())| (User.username==login_detail.login)).first()
     if not user_record:
+        raise HTTPException(status_code=400,detail="Username or Password is incorrect")
+
+    if user_record.username!=login_detail.login:
         raise HTTPException(status_code=400,detail="Username or Password is incorrect")
 
     if not pwd_context.verify(login_detail.password,user_record.password_hash):
         raise HTTPException(status_code=400,detail="Username or Password is incorrect")
+    
     if user_record.is_active:
-
+        access_token=Security.create_access_token(user_record.user_id)
+        refresh_token=Security.create_refresh_token()
         
-
-
-        return{
-                "message":"Login Successfull" # need to return the jwt token and refresh token
-            }
+        token_details=RefreshToken(user_id=user_record.user_id,token=refresh_token)
+    
+        db.add(token_details)
+        db.commit()
+    
+    #why we required reponse as a parameter
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            max_age=900, # why not expires ?
+            secure=False, # True during Production
+            samesite="lax"
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            max_age=30*24*60*60,
+            secure=False, # True during Production
+            samesite="lax"
+            )
+        
+        return {
+    
+        "username": user_record.username,
+        "message": "Login successful"
+        }
     else:
         raise HTTPException(status_code=403,detail="User account is inactive")
-    
-
-
 
 # ************************************Register************************************************
 
@@ -182,6 +207,58 @@ async def add_user(response:Response,db:Annotated[Session,Depends(get_db)], user
     "username": details.username,
     "message": "Registration successful"
     }
+# ************************************Refresh Token**********************************************
+
+@router.post("/RefreshToken",status_code=status.HTTP_200_OK)
+async def refresh_token(request:Request,response: Response,db:Annotated[Session,Depends(get_db)]):
+    token_refresh=request.cookies.get("refresh_token")
+    if not token_refresh:
+        raise HTTPException(status_code=401,detail="Refresh token missing")
+    token_record=db.query(RefreshToken).filter(RefreshToken.token==token_refresh).first()#but why are we comparing first result 
+    # here as refresh token we are generating multiple here.
+    if not token_record:
+        raise HTTPException(status_code=401,detail="Invalid Refresh Token")
+    if token_record.is_revoked:
+        raise HTTPException(status_code=401,detail="Refresh Token Revoked")
+    if token_record.expires_at<=datetime.now():
+        raise HTTPException(status_code=401,detail="Refresh Token Expired")
+    user = db.query(User).filter(User.user_id == token_record.user_id).first()
+    if not user:
+        raise HTTPException(status_code=401,detail="User not found")
+    if not user.is_active:
+        raise HTTPException(status_code=403,detail="User account inactive")
+
+    token_record.is_revoked=True
+
+    new_access_token=Security.create_access_token(token_record.user_id)
+    new_refresh_token=Security.create_refresh_token()
+
+    token_details=RefreshToken(token=new_refresh_token,user_id=user.user_id)
+
+    db.add(token_details)
+    db.commit()
+
+    #why we required reponse as a parameter
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        httponly=True,
+        max_age=900, # why not expires ?
+        secure=False, # True during Production
+        samesite="lax"
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        max_age=30*24*60*60,
+        secure=False, # True during Production
+        samesite="lax"
+        )
+    return {
+    "message": "Token refreshed successfully"
+    }
+
 
 # ************************************Forgot Password********************************************
 
