@@ -42,17 +42,13 @@ def cleanup_otp_record():
 
         db=SessionLocal()
 
-        #otp records which are not used and verified
-        expired_otp_records=db.query(PasswordResetOTP).filter(
-        PasswordResetOTP.expires_at <= datetime.now()).all()
-
+        #otp records which are expired
         #why used .all() below
         #otp records which are used and verified
-        otp_records_to_delete=db.query(PasswordResetOTP).filter((PasswordResetOTP.is_verified==True) | (PasswordResetOTP.is_used==True)).all()
-        record_count=len(otp_records_to_delete)+len(expired_otp_records)
+        otp_records_to_delete=db.query(PasswordResetOTP).filter((PasswordResetOTP.is_verified==True) | (PasswordResetOTP.is_used==True) | ( PasswordResetOTP.expires_at <= datetime.now())).all()
+        record_count=len(otp_records_to_delete)
         # Deleting the records
-        db.query(PasswordResetOTP).filter(PasswordResetOTP.expires_at <= datetime.now()).delete(synchronize_session=False)
-        db.query(PasswordResetOTP).filter((PasswordResetOTP.is_verified==True) | (PasswordResetOTP.is_used==True)).delete(synchronize_session=False)
+        db.query(PasswordResetOTP).filter((PasswordResetOTP.is_verified==True) | (PasswordResetOTP.is_used==True) | ( PasswordResetOTP.expires_at <= datetime.now())).delete(synchronize_session=False)
         db.commit()
 
         end_time=datetime.now()
