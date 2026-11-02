@@ -1,3 +1,3 @@
 from .User import User
-from .RefreshToken import RefreshToken
+from .UserSession import UserSession
 from .PasswordResetOTP import PasswordResetOTP

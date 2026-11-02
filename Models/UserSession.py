@@ -1,4 +1,3 @@
-
 from sqlalchemy.sql.schema import ForeignKey
 from datetime import datetime, timezone, timedelta
 from Database import Base
@@ -7,9 +6,9 @@ from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy.sql import func
 from datetime import timedelta
 
-class RefreshToken(Base):
+class UserSession(Base):
 
-    __tablename__="RefreshToken"
+    __tablename__="UserSession"
 
     id=Column(
         UNIQUEIDENTIFIER,
@@ -24,7 +23,7 @@ class RefreshToken(Base):
         nullable=False
         )
 
-    token=Column(
+    refresh_token=Column(
         String(255), 
         nullable=False,
         unique=True 
@@ -45,7 +44,11 @@ class RefreshToken(Base):
     created_at=Column(
         DateTime,
         server_default=func.getdate(),
-        onupdate=func.getdate(),
+        nullable=False
+        )
+    last_activity=Column(
+        DateTime,
+        server_default=func.getdate(),
         nullable=False
         )
     

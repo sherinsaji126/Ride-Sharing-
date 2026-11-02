@@ -1,5 +1,5 @@
 from Database import SessionLocal
-from Models import RefreshToken
+from Models import UserSession
 from datetime import datetime
 from Services.EmailService import send_email
 from dotenv import load_dotenv
@@ -36,15 +36,15 @@ def cleanup_refresh_tokens():
 
         db = SessionLocal()
 
-        expired_token_count = db.query(RefreshToken).filter(RefreshToken.expires_at <= datetime.now()).count()
+        expired_token_count = db.query(UserSession).filter(UserSession.expires_at <= datetime.now()).count()
 
-        revoked_token_count = db.query(RefreshToken).filter(RefreshToken.is_revoked == True).count()
+        revoked_token_count = db.query(UserSession).filter(UserSession.is_revoked == True).count()
 
         total_deleted = expired_token_count + revoked_token_count
 
-        db.query(RefreshToken).filter(RefreshToken.expires_at <= datetime.now()).delete(synchronize_session=False)
+        db.query(UserSession).filter(UserSession.expires_at <= datetime.now()).delete(synchronize_session=False)
 
-        db.query(RefreshToken).filter( RefreshToken.is_revoked == True).delete(synchronize_session=False)
+        db.query(UserSession).filter( UserSession.is_revoked == True).delete(synchronize_session=False)
 
         db.commit()
 

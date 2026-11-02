@@ -17,7 +17,7 @@ from Api.Dependencies import get_db
 # 1. The class is loaded into memory.
 # 2. SQLAlchemy registers the table definition.
 # 3. users table information is added to Base.metadata.
-from Models import PasswordResetOTP,User,RefreshToken
+from Models import PasswordResetOTP,User,UserSession
 from datetime import datetime,timedelta,timezone
 import secrets
 from Services.EmailService import send_otp_email
@@ -73,7 +73,7 @@ async def verify_user(response : Response,db:Annotated[Session,Depends(get_db)],
         access_token=Security.create_access_token(user_record.user_id)
         refresh_token=Security.create_refresh_token()
         
-        token_details=RefreshToken(user_id=user_record.user_id,token=refresh_token)
+        token_details=UserSession(user_id=user_record.user_id,refresh_token=refresh_token)
     
         db.add(token_details)
         db.commit()
@@ -178,7 +178,7 @@ async def add_user(response:Response,db:Annotated[Session,Depends(get_db)], user
     access_token=Security.create_access_token(details.user_id)
     refresh_token=Security.create_refresh_token()
     
-    token_details=RefreshToken(user_id=details.user_id,token=refresh_token)
+    token_details=UserSession(user_id=details.user_id,refresh_token=refresh_token)
 
     db.add(token_details)
     db.commit()
@@ -209,12 +209,12 @@ async def add_user(response:Response,db:Annotated[Session,Depends(get_db)], user
     }
 # ************************************Refresh Token**********************************************
 
-@router.post("/RefreshToken",status_code=status.HTTP_200_OK)
+@router.post("/UserSession",status_code=status.HTTP_200_OK)
 async def refresh_token(request:Request,response: Response,db:Annotated[Session,Depends(get_db)]):
     token_refresh=request.cookies.get("refresh_token")
     if not token_refresh:
         raise HTTPException(status_code=401,detail="Refresh token missing")
-    token_record=db.query(RefreshToken).filter(RefreshToken.token==token_refresh).first()#but why are we comparing first result 
+    token_record=db.query(UserSession).filter(UserSession.refresh_token==token_refresh).first()#but why are we comparing first result 
     # here as refresh token we are generating multiple here.
     if not token_record:
         raise HTTPException(status_code=401,detail="Invalid Refresh Token")
@@ -228,14 +228,12 @@ async def refresh_token(request:Request,response: Response,db:Annotated[Session,
     if not user.is_active:
         raise HTTPException(status_code=403,detail="User account inactive")
 
-    token_record.is_revoked=True
-
     new_access_token=Security.create_access_token(token_record.user_id)
     new_refresh_token=Security.create_refresh_token()
 
-    token_details=RefreshToken(token=new_refresh_token,user_id=user.user_id)
-
-    db.add(token_details)
+    token_record.refresh_token=new_refresh_token
+    token_record.expires_at=datetime.now()+timedelta(days=30)
+    token_record.last_activity=datetime.now()
     db.commit()
 
     #why we required reponse as a parameter
@@ -256,7 +254,7 @@ async def refresh_token(request:Request,response: Response,db:Annotated[Session,
         samesite="lax"
         )
     return {
-    "message": "Token refreshed successfully"
+    "message": "Refresh Token refreshed successfully"
     }
 
 
