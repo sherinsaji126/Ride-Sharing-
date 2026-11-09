@@ -3,6 +3,10 @@ import secrets
 from dotenv import load_dotenv
 import os
 from datetime import datetime,timedelta,timezone
+#Passlib is a Python library for secure password hashing. 
+# CryptContext is a Passlib class that provides a centralized way to configure hashing algorithms, 
+# hash passwords, verify passwords, and manage password hash upgrades over time.
+from passlib.context import CryptContext
 
 load_dotenv("Credentials.env")
 
@@ -20,3 +24,14 @@ def create_access_token(user_id:int):
 
 def create_refresh_token():
     return secrets.token_urlsafe(64)
+
+#************************Password Hashing and Verifying************************************************
+
+pwd_context = CryptContext(schemes=["bcrypt"],deprecated="auto")
+
+def hash_password(password: str):
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str,hashed_password: str):
+    return pwd_context.verify( plain_password,hashed_password)

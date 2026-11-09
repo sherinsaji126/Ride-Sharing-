@@ -1,6 +1,5 @@
 
 from fastapi import APIRouter,HTTPException,status,Depends
-# from starlette import status
 from typing import Annotated
 from Models import User
 from fastapi import HTTPException,Depends
@@ -9,7 +8,7 @@ from Api.Dependencies import get_db
 from Models import User
 
 
-router = APIRouter()
+router = APIRouter(prefix="/User",tags=["User"])
 
 
 # AN API ENDPOINT TO GET USER DETAILS FROM USER TABLE
