@@ -19,7 +19,7 @@ app.include_router(Auth.router)
 app.include_router(Users.router)
 app.include_router(Add_Trip.router)
 
-# Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine) # Using Alembic Data Migration
 
 def get_db():
 

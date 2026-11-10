@@ -4,6 +4,13 @@ from sqlalchemy import  Column, DateTime, String, Boolean
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy.sql import func
 
+from enum import Enum
+
+
+class UserRole(str, Enum):
+    USER = "USER"
+    ADMIN = "ADMIN"
+
 class User(Base):
 
     __tablename__="User"
@@ -49,4 +56,9 @@ class User(Base):
         server_default=func.getdate(),
         onupdate=func.getdate()
         )
+    Role=Column(
+        String(20),
+        nullable=False,
+        default=UserRole.USER
+    )
     

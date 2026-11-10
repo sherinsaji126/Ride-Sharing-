@@ -4,7 +4,7 @@ from jose.exceptions import JWTError, ExpiredSignatureError
 from Database import SessionLocal
 from typing import Annotated
 from sqlalchemy.orm import Session
-from Models import User
+from Models import User,UserRole
 from dotenv import load_dotenv
 import os
 
@@ -41,5 +41,8 @@ def get_current_user(request:Request,db:Annotated[Session,Depends(get_db)]):
 
     if not user_details:
         raise HTTPException(status_code=401,detail="User not found")
+
+    if user_details.role != UserRole.ADMIN.value:
+        raise HTTPException(status_code=403,detail="Access denied")
     
     return user_details
