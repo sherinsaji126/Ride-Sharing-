@@ -1,10 +1,11 @@
 from fastapi import HTTPException
 from datetime import datetime
+from uuid import UUID
 from sqlalchemy.orm import Session
 from Models import Trip,User
-from Schemas.AddTripSchemas import AddRequest,TripResponse
+from Schemas.TripSchemas import AddRequest,TripResponse
 
-class AddTripService:
+class TripService:
 
     @staticmethod
     def addtrip(db:Session,current_user:User,trip_details:AddRequest)->TripResponse:
@@ -51,3 +52,65 @@ class AddTripService:
     # As a result, instead of manually creating and returning a TripResponse object by assigning every 
     # field one by one, we can simply write return add_details, making the code cleaner and easier to maintain 
     # while still ensuring that only the fields defined in the response model are returned to the frontend.
+
+    @staticmethod
+    def get_my_trip(db:Session,current_user:User)-> Trip:
+        trips = (db.query(Trip).filter(Trip.user_id == current_user.user_id).all())
+
+        return trips
+
+    @staticmethod
+    def get_trip_by_id(db: Session,current_user: User,trip_id: UUID) -> Trip:
+
+        trip = (db.query(Trip).filter(Trip.trip_id == trip_id).first())
+
+        if trip.user_id != current_user.user_id:  
+            raise HTTPException(status_code=403,detail="Access denied")
+        
+        if not trip:
+            raise HTTPException(status_code=404,detail="Trip not found")
+
+        return trip
+
+    @staticmethod
+    def update_trip(db: Session,current_user: User,trip_id: UUID,trip_details: AddRequest) -> Trip:
+
+        trip = (db.query(Trip).filter(Trip.trip_id == trip_id).first())
+
+        if not trip:
+                    raise HTTPException(status_code=404,detail="Trip not found")
+
+        if trip.user_id != current_user.user_id:
+            raise HTTPException(status_code=403,detail="Access denied")
+        
+
+        trip.pickup_location = trip_details.pickup_location
+        trip.destination = trip_details.destination
+        trip.travel_date = trip_details.travel_date
+        trip.travel_time = trip_details.travel_time
+        trip.available_seats = trip_details.available_seats
+        trip.expected_total_cost = trip_details.expected_total_cost
+        trip.comment = trip_details.comment
+
+        db.commit()
+        db.refresh(trip)
+
+        return trip
+
+    @staticmethod
+    def delete_trip(db: Session,current_user: User,trip_id: UUID):
+
+        trip = (db.query(Trip).filter(Trip.trip_id == trip_id).first())
+
+        if trip.user_id != current_user.user_id:
+            raise HTTPException(status_code=403,detail="Access denied")
+        
+        if not trip:
+            raise HTTPException(status_code=404,detail="Trip not found")
+
+        trip.status = "CANCELLED"
+        db.commit()
+
+        return {
+            "message": "Trip cancelled successfully"
+        }

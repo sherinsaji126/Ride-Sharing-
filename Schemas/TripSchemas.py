@@ -1,5 +1,5 @@
 from typing import  Optional
-from pydantic import BaseModel, ConfigDict,Field, field_validator
+from pydantic import BaseModel, ConfigDict,Field, field_validator,model_validator
 from datetime import date, time
 from uuid import UUID
 
@@ -40,6 +40,14 @@ class AddRequest(BaseModel):
     @classmethod
     def clean_comment(cls, value):
         return value.strip() if value else ""
+
+    @model_validator(mode="after")
+    def validate_trip(self):
+
+        if (self.pickup_location.lower()==self.destination.lower()):
+            raise ValueError("Pickup and destination cannot be the same")
+
+        return self
     
 class TripResponse(BaseModel):
 

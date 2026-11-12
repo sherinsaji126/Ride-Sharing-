@@ -5,7 +5,13 @@ from sqlalchemy import Column,String,DateTime,Integer,Date,Time
 from sqlalchemy.sql import func
 from sqlalchemy.sql.schema import ForeignKey
 
+from enum import Enum
 
+class TripStatus(str, Enum):
+    OPEN = "OPEN"
+    FULL = "FULL"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
 
 class Trip(Base):
     __tablename__="Trip"
@@ -51,7 +57,7 @@ class Trip(Base):
     )
     status = Column(
         String(50),
-        default="OPEN",
+        default=TripStatus.OPEN.value,
         nullable=False
     )
     created_at = Column(

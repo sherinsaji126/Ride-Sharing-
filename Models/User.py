@@ -59,6 +59,6 @@ class User(Base):
     Role=Column(
         String(20),
         nullable=False,
-        default=UserRole.USER
+        default=UserRole.USER.value
     )
     

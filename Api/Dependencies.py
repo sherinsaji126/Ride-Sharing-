@@ -20,7 +20,15 @@ def get_db():
 
 def get_current_user(request:Request,db:Annotated[Session,Depends(get_db)]):
 
+    """1. Read token
+       2. Validate token
+       3. Get user from DB
+       4. Return user"""
+
     access_token=request.cookies.get("access_token")
+
+    if access_token is None:
+        raise HTTPException(status_code=401,detail="Not Authenicated")
 
     try:
         decode_token=jwt.decode(access_token,os.getenv("SECRET_KEY"),
@@ -41,8 +49,14 @@ def get_current_user(request:Request,db:Annotated[Session,Depends(get_db)]):
 
     if not user_details:
         raise HTTPException(status_code=401,detail="User not found")
-
-    if user_details.role != UserRole.ADMIN.value:
-        raise HTTPException(status_code=403,detail="Access denied")
     
     return user_details
+
+def get_admin_user(current_user: Annotated[User,Depends(get_current_user)]):
+    
+    """1. Validating if user is admin or not"""
+     
+    if current_user.role != UserRole.ADMIN.value:
+        raise HTTPException(status_code=403,detail="Access denied")
+
+    return current_user
