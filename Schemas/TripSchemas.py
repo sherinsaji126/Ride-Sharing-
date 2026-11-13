@@ -3,6 +3,7 @@ from pydantic import BaseModel, ConfigDict,Field, field_validator,model_validato
 from datetime import date, time
 from uuid import UUID
 
+
 #Request Model
 class AddRequest(BaseModel):
 
@@ -28,6 +29,14 @@ class AddRequest(BaseModel):
         default="",
         max_length=500
     )
+    pickup_latitude:float
+          
+    pickup_longitude:float
+        
+    destination_latitude :float
+        
+    destination_longitude:float
+          
 
     @field_validator("pickup_location", "destination")
     @classmethod
@@ -61,3 +70,10 @@ class TripResponse(BaseModel):
     available_seats: int
     expected_total_cost: int
     comment: str
+    pickup_latitude:float      
+    pickup_longitude:float
+    destination_latitude :float
+    destination_longitude:float
+
+class NearbyTripResponse(TripResponse):
+    distance: float

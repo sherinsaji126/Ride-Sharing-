@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from Api.Dependencies import get_db,get_current_user
 from Models import User
-from Schemas.TripSchemas import AddRequest,TripResponse
+from Schemas.TripSchemas import AddRequest,TripResponse,NearbyTripResponse
 from Services.TripService import TripService
 
 
@@ -21,6 +21,10 @@ async def get_my_trip(db:Annotated[Session,Depends(get_db)],current_user:Annotat
 
     return TripService.get_my_trip(db,current_user)
 
+@router.get("/nearby",response_model=list[NearbyTripResponse])
+async def nearby_trips(latitude: float,longitude: float,db: Annotated[Session, Depends(get_db)],current_user: Annotated[User,Depends(get_current_user)],radius: float = 5):
+    return TripService.nearby_trips(latitude,longitude,radius,db,current_user)
+
 @router.get("/{trip_id}",response_model=TripResponse)
 async def get_trip_by_id(trip_id: UUID,db: Annotated[Session, Depends(get_db)],current_user: Annotated[User,Depends(get_current_user)]):
     return TripService.get_trip_by_id(db,current_user,trip_id)
@@ -32,3 +36,4 @@ async def update_trip(trip_id: UUID,trip_details: AddRequest,db: Annotated[Sessi
 @router.delete("/{trip_id}",status_code=status.HTTP_200_OK)
 async def delete_trip(trip_id: UUID,db: Annotated[Session, Depends(get_db)],current_user: Annotated[User,Depends(get_current_user)]):
     return TripService.delete_trip(db,current_user,trip_id)
+

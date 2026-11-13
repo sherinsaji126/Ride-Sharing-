@@ -1,4 +1,4 @@
-from sqlalchemy import Column
+from sqlalchemy import Column,Float
 from Database import Base
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy import Column,String,DateTime,Integer,Date,Time
@@ -69,5 +69,21 @@ class Trip(Base):
         DateTime,
         server_default=func.getdate(),
         onupdate=func.getdate()
-        )
+    )
+    pickup_latitude = Column(
+        Float,
+        nullable=False
+    )
+    pickup_longitude = Column(
+        Float,
+        nullable=False
+    )
+    destination_latitude = Column(
+        Float,
+        nullable=False
+    )
+    destination_longitude = Column(
+        Float,
+        nullable=False
+    )
 

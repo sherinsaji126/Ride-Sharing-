@@ -1,21 +1,24 @@
 from fastapi import HTTPException
-from datetime import datetime
+from datetime import datetime,timezone
 from uuid import UUID
 from sqlalchemy.orm import Session
 from Models import Trip,User
-from Schemas.TripSchemas import AddRequest,TripResponse
+from Schemas.TripSchemas import AddRequest,TripResponse,NearbyTripResponse
+from Core.GeoUtils import calculate_distance
 
 class TripService:
 
     @staticmethod
     def addtrip(db:Session,current_user:User,trip_details:AddRequest)->TripResponse:
 
+        #naive timezone
         trip_datetime = datetime.combine(
         trip_details.travel_date,
         trip_details.travel_time
         )
-        
-        if trip_datetime <= datetime.now():
+
+        #datetime.now is aware timezone
+        if trip_datetime <= datetime.now(timezone.utc):
             raise HTTPException(
                 status_code=400,
                 detail="Trip must be scheduled in the future"
@@ -29,7 +32,8 @@ class TripService:
         add_details=Trip(user_id=current_user.user_id,pickup_location=trip_details.pickup_location,destination=trip_details.destination,
                         travel_date=trip_details.travel_date,travel_time=trip_details.travel_time,
                         available_seats=trip_details.available_seats,expected_total_cost=trip_details.expected_total_cost,
-                        comment=trip_details.comment)
+                        comment=trip_details.comment,pickup_latitude=trip_details.pickup_latitude,pickup_longitude=trip_details.pickup_longitude,
+                        destination_latitude=trip_details.destination_latitude,destination_longitude=trip_details.destination_longitude)
         try :
             db.add(add_details)
             db.commit()
@@ -91,6 +95,10 @@ class TripService:
         trip.available_seats = trip_details.available_seats
         trip.expected_total_cost = trip_details.expected_total_cost
         trip.comment = trip_details.comment
+        trip.pickup_latitude=trip_details.pickup_latitude
+        trip.pickup_longitude=trip_details.pickup_longitude,
+        trip.destination_latitude=trip_details.destination_latitude
+        trip.destination_longitude=trip_details.destination_longitude
 
         db.commit()
         db.refresh(trip)
@@ -114,3 +122,35 @@ class TripService:
         return {
             "message": "Trip cancelled successfully"
         }
+
+    @staticmethod
+    def nearby_trips(latitude: float,longitude: float,radius: float,db:Session,current_user: User):
+         """1. Get all eligible trips
+            2. Ignore trips created by current user
+            3. Calculate distance
+            4. Return only trips within radius"""
+
+         trips = db.query(Trip).filter(Trip.user_id != current_user.user_id).all()
+
+
+         if not trips:
+             raise HTTPException(status_code=404,detail="No trip nearby")
+
+         nearby_trips = []
+        
+         for item in trips:
+
+            distance = calculate_distance(latitude,longitude,item.pickup_latitude,item.pickup_longitude)
+
+            if distance <= radius:
+
+                trip_response = TripResponse.model_validate(item)
+
+            nearby_trips.append(NearbyTripResponse(**trip_response.model_dump(),distance=round(distance, 2)))
+
+         nearby_trips.sort(key=lambda x: x.distance)
+
+         return nearby_trips
+
+         
+
