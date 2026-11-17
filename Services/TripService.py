@@ -2,8 +2,8 @@ from fastapi import HTTPException
 from datetime import datetime,timezone
 from uuid import UUID
 from sqlalchemy.orm import Session
-from Models import Trip,User
-from Schemas.TripSchemas import AddRequest,TripResponse,NearbyTripResponse
+from Models import Trip,User,TripRequest, RequestStatus,TripStatus
+from Schemas.TripSchemas import AddRequest,TripResponse,NearbyTripResponse,RequestTrip
 from Core.GeoUtils import calculate_distance
 
 class TripService:
@@ -116,7 +116,7 @@ class TripService:
         if not trip:
             raise HTTPException(status_code=404,detail="Trip not found")
 
-        trip.status = "CANCELLED"
+        trip.status = TripStatus.CANCELLED.value
         db.commit()
 
         return {
@@ -129,16 +129,12 @@ class TripService:
             2. Ignore trips created by current user
             3. Calculate distance
             4. Return only trips within radius"""
-
-         trips = db.query(Trip).filter(Trip.user_id != current_user.user_id).all()
-
-
-         if not trips:
-             raise HTTPException(status_code=404,detail="No trip nearby")
+         
+         trips = db.query(Trip,User.username).join(User,User.user_id == Trip.user_id).filter(Trip.user_id != current_user.user_id,Trip.status == TripStatus.OPEN.value).all()
 
          nearby_trips = []
         
-         for item in trips:
+         for item , username in trips:
 
             distance = calculate_distance(latitude,longitude,item.pickup_latitude,item.pickup_longitude)
 
@@ -146,11 +142,153 @@ class TripService:
 
                 trip_response = TripResponse.model_validate(item)
 
-            nearby_trips.append(NearbyTripResponse(**trip_response.model_dump(),distance=round(distance, 2)))
+                nearby_trips.append(NearbyTripResponse(**trip_response.model_dump(),username=username,distance=round(distance, 2)))
 
          nearby_trips.sort(key=lambda x: x.distance)
 
          return nearby_trips
 
-         
+    @staticmethod
+    def request_trip(db: Session,current_user: User,trip_id: UUID,trip_request:RequestTrip):
 
+        trip = db.query(Trip).filter(Trip.trip_id == trip_id).first()
+
+        if not trip:
+            raise HTTPException(status_code=404,detail="Trip not found")
+        
+        if trip.user_id == current_user.user_id:
+            raise HTTPException(status_code=400,detail="Cannot join your own trip")
+
+        if trip.status == TripStatus.CANCELLED.value:
+                    raise HTTPException(status_code=400,detail="Trip is not available for requests")
+        
+        existing_request = db.query(TripRequest).filter(TripRequest.trip_id == trip_id,TripRequest.requester_id == current_user.user_id).first()
+          
+        if existing_request:
+            if existing_request.status in [RequestStatus.PENDING.value,RequestStatus.APPROVED.value]:
+                raise HTTPException(status_code=400,detail="Request already sent")
+            
+            if existing_request.status == RequestStatus.REJECTED.value:
+                existing_request.status = RequestStatus.PENDING.value
+                existing_request.requester_latitude = trip_request.requester_latitude
+                existing_request.requester_longitude = trip_request.requester_longitude
+
+            db.commit()
+
+            return {
+                "message": "Trip request sent"
+            }                    
+
+        request = TripRequest(trip_id=trip_id,requester_id=current_user.user_id,requester_latitude=trip_request.requester_latitude,requester_longitude=trip_request.requester_longitude)
+        
+        db.add(request)
+        db.commit()
+        db.refresh(request)
+
+        return {
+                  "message": "Trip request sent"
+                }
+        
+    @staticmethod
+    def get_trip_requests(db: Session,current_user: User,trip_request:RequestTrip):
+
+
+        requests = db.query(TripRequest,User.username,Trip).join(Trip,Trip.trip_id == TripRequest.trip_id).join(User,User.user_id == TripRequest.requester_id).filter(Trip.user_id == current_user.user_id,TripRequest.status != RequestStatus.REJECTED.value).all()
+
+        result = []
+
+        for request, username, trip in requests:
+
+            distance = None
+
+            if (request.requester_latitude is not None and request.requester_longitude is not None):
+
+                distance = round(calculate_distance(request.requester_latitude,request.requester_longitude,trip.pickup_latitude,trip.pickup_longitude),2)
+
+            result.append(
+                {
+                    "request_id": request.request_id,
+                    "trip_id": trip.trip_id,
+                    "requester_name": username,
+                    "pickup_location": trip.pickup_location,
+                    "destination": trip.destination,
+                    "distance": distance,
+                    "status": request.status
+                }
+            )
+
+        return result
+
+    @staticmethod
+    def approve_request(db: Session,current_user: User,request_id: UUID):
+
+        request = db.query(TripRequest).filter(TripRequest.request_id == request_id).first()
+
+        if not request:
+            raise HTTPException(status_code=404,detail="Request not found")
+
+        trip = db.query(Trip).filter(Trip.trip_id == request.trip_id).first()
+
+        if not trip:
+            raise HTTPException(status_code=404,detail="Trip not found")
+        
+        if trip.user_id != current_user.user_id:
+                    raise HTTPException(status_code=403,detail="Access denied")
+
+        if trip.status != TripStatus.OPEN.value:
+            raise HTTPException(status_code=400,detail="Trip is not accepting requests")
+
+        if trip.available_seats <= 0:
+            raise HTTPException(status_code=400,detail="No seats available")
+
+        if request.status == RequestStatus.APPROVED.value:
+            raise HTTPException(status_code=400,detail="Request already approved")
+
+        if request.status == RequestStatus.REJECTED.value:
+            raise HTTPException(status_code=400,detail="Rejected request cannot be approved")
+        
+        request.status = RequestStatus.APPROVED.value
+
+        trip.available_seats -= 1
+
+        if trip.available_seats == 0:
+            trip.status = TripStatus.FULL.value
+
+        db.commit()
+
+        return {
+            "message": "Request approved"
+        }
+
+    @staticmethod
+    def reject_request(db: Session,current_user: User,request_id: UUID):
+
+        request = (db.query(TripRequest).filter(TripRequest.request_id == request_id).first())
+
+        if not request:
+            raise HTTPException(status_code=404,detail="Request not found")
+
+        trip = db.query(Trip).filter(Trip.trip_id == request.trip_id).first()
+
+        if not trip:
+            raise HTTPException(status_code=404,detail="Trip not found")
+
+        if trip.user_id != current_user.user_id:
+            raise HTTPException(status_code=403,detail="Access denied")
+
+        if request.status == RequestStatus.REJECTED.value:
+                raise HTTPException(status_code=400,detail="Request already rejected")
+
+        if request.status==RequestStatus.APPROVED.value:
+            trip.available_seats += 1
+            if trip.status == TripStatus.FULL.value:
+                trip.status=TripStatus.OPEN.value
+
+        request.status = RequestStatus.REJECTED.value
+
+        db.commit()
+
+        return {
+            "message": "Request rejected"
+        }
+        

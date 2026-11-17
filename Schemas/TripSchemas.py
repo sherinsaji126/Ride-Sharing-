@@ -57,7 +57,13 @@ class AddRequest(BaseModel):
             raise ValueError("Pickup and destination cannot be the same")
 
         return self
-    
+
+#Request Model for TripRequest
+class RequestTrip(BaseModel):
+   
+    requester_latitude:float
+    requester_longitude:float
+
 class TripResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
@@ -77,3 +83,4 @@ class TripResponse(BaseModel):
 
 class NearbyTripResponse(TripResponse):
     distance: float
+    username:str
