@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from datetime import datetime,timezone
 from uuid import UUID
 from sqlalchemy.orm import Session
-from Models import Trip,User,TripRequest, RequestStatus,TripStatus
+from Models import Trip,User,TripRequest, RequestStatus,TripStatus, ChatRoom,ChatMessage, ChatParticipant
 from Schemas.TripSchemas import AddRequest,TripResponse,NearbyTripResponse,RequestTrip
 from Core.GeoUtils import calculate_distance
 
@@ -250,6 +250,29 @@ class TripService:
         request.status = RequestStatus.APPROVED.value
 
         trip.available_seats -= 1
+
+        group_details=db.query(ChatRoom).filter(ChatRoom.trip_id==trip.trip_id).first()
+
+        if not group_details:
+             group=ChatRoom(trip_id=trip.trip_id,owner_id=trip.user_id,group_name=f"{trip.pickup_location} to {trip.destination}")
+
+             db.add(group)
+             db.flush()  # gets chat_id without commit
+
+            # Add owner as first participant
+             owner_participant = ChatParticipant(chat_id=group.group_id,user_id=trip.user_id)
+             db.add(owner_participant)
+
+        else:         
+            group = group_details
+
+        participant_exists = db.query(ChatParticipant).filter(ChatParticipant.chat_id == group.group_id,ChatParticipant.user_id == request.requester_id).first()
+
+        if not participant_exists:
+
+            participant = ChatParticipant(chat_id=group.group_id,user_id=request.requester_id)
+            db.add(participant)
+
 
         if trip.available_seats == 0:
             trip.status = TripStatus.FULL.value

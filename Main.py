@@ -1,7 +1,7 @@
 
 # Import the FastAPI class from the FastAPI library.
 from fastapi import FastAPI
-from Api.Routers import Auth, Trip,Users
+from Api.Routers import Auth, Trip,Users,Message
 
 from Database import Base,engine,SessionLocal
 
@@ -18,6 +18,7 @@ app=FastAPI(title="Ride Sharing Project",version="1.0.0")
 app.include_router(Auth.router)
 app.include_router(Users.router)
 app.include_router(Trip.router)
+app.include_router(Message.router)
 
 # Base.metadata.create_all(bind=engine) # Using Alembic Data Migration
 

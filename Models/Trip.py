@@ -1,7 +1,6 @@
-from sqlalchemy import Column,Float
 from Database import Base
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
-from sqlalchemy import Column,String,DateTime,Integer,Date,Time
+from sqlalchemy import Column,String,DateTime,Integer,Date,Time,Float
 from sqlalchemy.sql import func
 from sqlalchemy.sql.schema import ForeignKey
 
